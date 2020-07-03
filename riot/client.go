@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"net/http"
 	"path"
+
+	"golang.org/x/time/rate"
 )
 
 const (
@@ -28,17 +30,29 @@ type Client interface {
 	Match(ctx context.Context, region string, matchID string) (*Match, error)
 }
 
-// BaseClient is the base wrapper for querying the Riot API.
+// baseClient is the base wrapper for querying the Riot API.
 // It does not perform any rate limiting or request caching.
-type BaseClient struct {
+type baseClient struct {
 	Client
 	// Key is your RAPI key.
 	Key string
+
+	limiter *rate.Limiter
+}
+
+func New(key string, limiter *rate.Limiter) *baseClient {
+	c := &baseClient{Key: key}
+	c.limiter = limiter
+	return c
 }
 
 // get is a wrapper for directly fetching from RAPI.
-func (c *BaseClient) get(ctx context.Context, routing string, endpoint string, obj interface{}) error {
+func (c *baseClient) get(ctx context.Context, routing string, endpoint string, obj interface{}) error {
 	ep := "https://" + path.Join(fmt.Sprintf("%s.api.riotgames.com", routing), endpoint)
+
+	if err := c.limiter.Wait(ctx); err != nil {
+		return fmt.Errorf("get(%q): failed on waiting for rate limit: %v", ep, err)
+	}
 
 	req, err := http.NewRequest("GET", ep, nil)
 	if err != nil {
@@ -64,7 +78,7 @@ func (c *BaseClient) get(ctx context.Context, routing string, endpoint string, o
 	return nil
 }
 
-func (c *BaseClient) SummonerByName(ctx context.Context, platform string, name string) (*Summoner, error) {
+func (c *baseClient) SummonerByName(ctx context.Context, platform string, name string) (*Summoner, error) {
 	ep := path.Join(summonerAPIPrefix, "by-name", name)
 	s := &Summoner{}
 
@@ -76,7 +90,7 @@ func (c *BaseClient) SummonerByName(ctx context.Context, platform string, name s
 	return s, nil
 }
 
-func (c *BaseClient) League(ctx context.Context, s *Summoner) (*LeagueEntryDTO, error) {
+func (c *baseClient) League(ctx context.Context, s *Summoner) (*LeagueEntryDTO, error) {
 	ep := path.Join(rankedAPIPrefix, "entries/by-summoner", s.ID)
 
 	// The TFT League API returns a list of LeagueEntryDTOs despite the list always
@@ -90,7 +104,7 @@ func (c *BaseClient) League(ctx context.Context, s *Summoner) (*LeagueEntryDTO, 
 	return &leagues[0], nil
 }
 
-func (c *BaseClient) Matches(ctx context.Context, s *Summoner, count int) ([]string, error) {
+func (c *baseClient) Matches(ctx context.Context, s *Summoner, count int) ([]string, error) {
 	ep := path.Join(matchAPIPrefix, fmt.Sprintf("by-puuid/%s/ids?count=%d", s.PUUID, count))
 
 	var ids []string
@@ -101,7 +115,7 @@ func (c *BaseClient) Matches(ctx context.Context, s *Summoner, count int) ([]str
 	return ids, nil
 }
 
-func (c *BaseClient) Match(ctx context.Context, region string, matchID string) (*Match, error) {
+func (c *baseClient) Match(ctx context.Context, region string, matchID string) (*Match, error) {
 	ep := path.Join(matchAPIPrefix, matchID)
 	m := &Match{}
 	if err := c.get(ctx, region, ep, &m); err != nil {
