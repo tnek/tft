@@ -8,14 +8,34 @@ import (
 	"path"
 )
 
+const (
+	summonerAPIPrefix = "/tft/summoner/v1/summoners/"
+	matchAPIPrefix    = "/tft/match/v1/matches"
+	rankedAPIPrefix   = "/tft/league/v1/"
+)
+
 // Client represents a handler for the Riot API
-type Client struct {
+type clientImpl struct {
 	// Key is your RAPI key.
 	Key string
 }
 
-// get is a wrapper for fetching from RAPI.
-func (c *Client) get(ctx context.Context, routing string, endpoint string, obj interface{}) error {
+type Client interface {
+	// SummonerByName retrieves a Summoner object by username.
+	SummonerByName(ctx context.Context, platform string, name string) (*Summoner, error)
+
+	// League retrieves personal Ranked information about a given summoner
+	League(ctx context.Context, s *Summoner) (*LeagueEntryDTO, error)
+
+	// Matches returns the match IDs of the last matches of a given Summoner
+	Matches(ctx context.Context, s *Summoner, count int) ([]string, error)
+
+	// Match fetches data about a specific match given a Match ID.
+	Match(ctx context.Context, region string, matchID string) (*Match, error)
+}
+
+// get is a wrapper for directly fetching from RAPI.
+func (c *clientImpl) get(ctx context.Context, routing string, endpoint string, obj interface{}) error {
 	ep := "https://" + path.Join(fmt.Sprintf("%s.api.riotgames.com", routing), endpoint)
 
 	req, err := http.NewRequest("GET", ep, nil)
@@ -40,4 +60,51 @@ func (c *Client) get(ctx context.Context, routing string, endpoint string, obj i
 	}
 
 	return nil
+}
+
+func (c *clientImpl) SummonerByName(ctx context.Context, platform string, name string) (*Summoner, error) {
+	ep := path.Join(summonerAPIPrefix, "by-name", name)
+	s := &Summoner{}
+
+	if err := c.get(ctx, platform, ep, s); err != nil {
+		return nil, err
+	}
+	s.Platform = platform
+	s.Region = PlatformToRegion[platform]
+	return s, nil
+}
+
+func (c *clientImpl) League(ctx context.Context, s *Summoner) (*LeagueEntryDTO, error) {
+	ep := path.Join(rankedAPIPrefix, "entries/by-summoner", s.ID)
+
+	// The TFT League API returns a list of LeagueEntryDTOs despite the list always
+	// only ever containing one entry, since it's copy-pasted from the regular
+	// League Ranked API.
+	var leagues []LeagueEntryDTO
+	if err := c.get(ctx, s.Platform, ep, &leagues); err != nil {
+		return nil, err
+	}
+
+	return &leagues[0], nil
+}
+
+func (c *clientImpl) Matches(ctx context.Context, s *Summoner, count int) ([]string, error) {
+	ep := path.Join(matchAPIPrefix, fmt.Sprintf("by-puuid/%s/ids?count=%d", s.PUUID, count))
+
+	var ids []string
+	if err := c.get(ctx, s.Region, ep, &ids); err != nil {
+		return nil, err
+	}
+
+	return ids, nil
+}
+
+func (c *clientImpl) Match(ctx context.Context, region string, matchID string) (*Match, error) {
+	ep := path.Join(matchAPIPrefix, matchID)
+	m := &Match{}
+	if err := c.get(ctx, region, ep, &m); err != nil {
+		return nil, err
+	}
+
+	return m, nil
 }

@@ -1,15 +1,5 @@
 package riot
 
-import (
-	"context"
-	"path"
-)
-
-const (
-	summonerAPIPrefix = "/tft/summoner/v1/summoners/"
-	rankedAPIPrefix   = "/tft/league/v1/"
-)
-
 // Summoner represents a TFT account.
 type Summoner struct {
 	Name string `json:"name"`
@@ -63,33 +53,4 @@ type LeagueEntryDTO struct {
 	// miniSeries of type MiniSeriesDTO is another field mentioned in the API Docs,
 	// but seems to be unused and a leftover from when the TFT match API was just
 	// part of the main	League API.
-}
-
-// SummonerByName retrieves a Summoner object by username.
-// TODO: cache this
-func (c *Client) SummonerByName(ctx context.Context, platform string, name string) (*Summoner, error) {
-	ep := path.Join(summonerAPIPrefix, "by-name", name)
-	s := &Summoner{}
-
-	if err := c.get(ctx, platform, ep, s); err != nil {
-		return nil, err
-	}
-	s.Platform = platform
-	s.Region = PlatformToRegion[platform]
-	return s, nil
-}
-
-// League retrieves personal League information about a given summoner
-func (c *Client) League(ctx context.Context, s *Summoner) (*LeagueEntryDTO, error) {
-	ep := path.Join(rankedAPIPrefix, "entries/by-summoner", s.ID)
-
-	// The TFT League API returns a list of LeagueEntryDTOs despite the list always
-	// only ever containing one entry, since it's copy-pasted from the regular
-	// League Ranked API.
-	var leagues []LeagueEntryDTO
-	if err := c.get(ctx, s.Platform, ep, &leagues); err != nil {
-		return nil, err
-	}
-
-	return &leagues[0], nil
 }
