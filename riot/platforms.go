@@ -1,4 +1,4 @@
-package tft
+package riot
 
 var (
 	// RegionToPlatform is the mapping of Region name to Platform
