@@ -14,12 +14,6 @@ const (
 	rankedAPIPrefix   = "/tft/league/v1/"
 )
 
-// Client represents a handler for the Riot API
-type clientImpl struct {
-	// Key is your RAPI key.
-	Key string
-}
-
 type Client interface {
 	// SummonerByName retrieves a Summoner object by username.
 	SummonerByName(ctx context.Context, platform string, name string) (*Summoner, error)
@@ -34,8 +28,16 @@ type Client interface {
 	Match(ctx context.Context, region string, matchID string) (*Match, error)
 }
 
+// BaseClient is the base wrapper for querying the Riot API.
+// It does not perform any rate limiting or request caching.
+type BaseClient struct {
+	Client
+	// Key is your RAPI key.
+	Key string
+}
+
 // get is a wrapper for directly fetching from RAPI.
-func (c *clientImpl) get(ctx context.Context, routing string, endpoint string, obj interface{}) error {
+func (c *BaseClient) get(ctx context.Context, routing string, endpoint string, obj interface{}) error {
 	ep := "https://" + path.Join(fmt.Sprintf("%s.api.riotgames.com", routing), endpoint)
 
 	req, err := http.NewRequest("GET", ep, nil)
@@ -62,7 +64,7 @@ func (c *clientImpl) get(ctx context.Context, routing string, endpoint string, o
 	return nil
 }
 
-func (c *clientImpl) SummonerByName(ctx context.Context, platform string, name string) (*Summoner, error) {
+func (c *BaseClient) SummonerByName(ctx context.Context, platform string, name string) (*Summoner, error) {
 	ep := path.Join(summonerAPIPrefix, "by-name", name)
 	s := &Summoner{}
 
@@ -74,7 +76,7 @@ func (c *clientImpl) SummonerByName(ctx context.Context, platform string, name s
 	return s, nil
 }
 
-func (c *clientImpl) League(ctx context.Context, s *Summoner) (*LeagueEntryDTO, error) {
+func (c *BaseClient) League(ctx context.Context, s *Summoner) (*LeagueEntryDTO, error) {
 	ep := path.Join(rankedAPIPrefix, "entries/by-summoner", s.ID)
 
 	// The TFT League API returns a list of LeagueEntryDTOs despite the list always
@@ -88,7 +90,7 @@ func (c *clientImpl) League(ctx context.Context, s *Summoner) (*LeagueEntryDTO, 
 	return &leagues[0], nil
 }
 
-func (c *clientImpl) Matches(ctx context.Context, s *Summoner, count int) ([]string, error) {
+func (c *BaseClient) Matches(ctx context.Context, s *Summoner, count int) ([]string, error) {
 	ep := path.Join(matchAPIPrefix, fmt.Sprintf("by-puuid/%s/ids?count=%d", s.PUUID, count))
 
 	var ids []string
@@ -99,7 +101,7 @@ func (c *clientImpl) Matches(ctx context.Context, s *Summoner, count int) ([]str
 	return ids, nil
 }
 
-func (c *clientImpl) Match(ctx context.Context, region string, matchID string) (*Match, error) {
+func (c *BaseClient) Match(ctx context.Context, region string, matchID string) (*Match, error) {
 	ep := path.Join(matchAPIPrefix, matchID)
 	m := &Match{}
 	if err := c.get(ctx, region, ep, &m); err != nil {
