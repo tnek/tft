@@ -30,6 +30,11 @@ type baseClient struct {
 	limiter *multilimiter.Limiter
 }
 
+func NewBaseClient(opts *ClientOpts) *baseClient {
+	c := &baseClient{Key: opts.Key}
+	c.limiter = opts.Limiter
+}
+
 func New(key string, limiter *multilimiter.Limiter) *baseClient {
 	c := &baseClient{Key: key}
 	c.limiter = limiter

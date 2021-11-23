@@ -1,3 +1,5 @@
+github.com/mattn/go-sqlite3 v1.14.9 h1:10HX2Td0ocZpYEjhilsuo6WWtUqttj2Kb0KtD86/KYA=
+github.com/mattn/go-sqlite3 v1.14.9/go.mod h1:NyWgC/yNuGj7Q9rpYnZvas74GogHl5/Z4A/KQRfk6bU=
 github.com/tnek/multilimiter v0.0.0-20211123025219-5b680c89a83c h1:i3RiHKYvhLWsOP378jUPskUILGUzc5kkdrbpIVCWd2Y=
 github.com/tnek/multilimiter v0.0.0-20211123025219-5b680c89a83c/go.mod h1:OQMrnvo2916zUe+s2x2Tvt/ndZWzCKUBUE2XTtjAzoA=
 golang.org/x/time v0.0.0-20211116232009-f0f3c7e86c11 h1:GZokNIeuVkl3aZHJchRrr13WCsols02MLUcz1U9is6M=
