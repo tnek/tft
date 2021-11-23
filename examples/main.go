@@ -7,7 +7,7 @@ import (
 	"os"
 	"strings"
 
-	"github.com/tnek/tft/riot"
+	riotclient "github.com/tnek/tft/riot/client"
 )
 
 const (
@@ -28,12 +28,21 @@ func main() {
 		log.Fatalf("failed to read rapiKey from %v: %v", rapiKeyPath, err)
 	}
 
-	rc := riot.New(rapiKey, riot.DevLimiter)
+	rc := riotclient.New(rapiKey, riotclient.DevLimiter)
 	ctx := context.Background()
-	summoner, err := rc.SummonerByName(ctx, "na1", "tnekk")
+	s, err := rc.SummonerByName(ctx, "na1", "tnekk")
 	if err != nil {
 		log.Fatalf("%v", err)
 	}
 
-	fmt.Println(summoner)
+	fmt.Println(s)
+	id, err := rc.Matches(ctx, s, 1)
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+	match, err := rc.Match(ctx, s.Region, id[0])
+	if err != nil {
+		log.Fatalf("%v", err)
+	}
+	fmt.Println(match)
 }

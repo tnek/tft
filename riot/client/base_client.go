@@ -1,4 +1,4 @@
-package riot
+package riotclient
 
 import (
 	"context"
@@ -8,13 +8,8 @@ import (
 	"path"
 
 	"github.com/tnek/multilimiter"
+	"github.com/tnek/tft/riot"
 	"golang.org/x/time/rate"
-)
-
-const (
-	summonerAPIPrefix = "/tft/summoner/v1/summoners/"
-	matchAPIPrefix    = "/tft/match/v1/matches"
-	rankedAPIPrefix   = "/tft/league/v1/"
 )
 
 var (
@@ -24,20 +19,6 @@ var (
 		rate.NewLimiter(120, 100),
 	})
 )
-
-type Client interface {
-	// SummonerByName retrieves a Summoner object by username.
-	SummonerByName(ctx context.Context, platform string, name string) (*Summoner, error)
-
-	// League retrieves personal Ranked information about a given summoner
-	League(ctx context.Context, s *Summoner) (*LeagueEntryDTO, error)
-
-	// Matches returns the match IDs of the last matches of a given Summoner
-	Matches(ctx context.Context, s *Summoner, count int) ([]string, error)
-
-	// Match fetches data about a specific match given a Match ID.
-	Match(ctx context.Context, region string, matchID string) (*Match, error)
-}
 
 // baseClient is the base wrapper for querying the Riot API.
 // It does not perform any rate limiting or request caching.
@@ -87,25 +68,25 @@ func (c *baseClient) get(ctx context.Context, routing string, endpoint string, o
 	return nil
 }
 
-func (c *baseClient) SummonerByName(ctx context.Context, platform string, name string) (*Summoner, error) {
+func (c *baseClient) SummonerByName(ctx context.Context, platform string, name string) (*riot.Summoner, error) {
 	ep := path.Join(summonerAPIPrefix, "by-name", name)
-	s := &Summoner{}
+	s := &riot.Summoner{}
 
 	if err := c.get(ctx, platform, ep, s); err != nil {
 		return nil, err
 	}
 	s.Platform = platform
-	s.Region = PlatformToRegion[platform]
+	s.Region = riot.PlatformToRegion[platform]
 	return s, nil
 }
 
-func (c *baseClient) League(ctx context.Context, s *Summoner) (*LeagueEntryDTO, error) {
+func (c *baseClient) League(ctx context.Context, s *riot.Summoner) (*riot.LeagueEntryDTO, error) {
 	ep := path.Join(rankedAPIPrefix, "entries/by-summoner", s.ID)
 
 	// The TFT League API returns a list of LeagueEntryDTOs despite the list always
 	// only ever containing one entry, since it's copy-pasted from the regular
 	// League Ranked API.
-	var leagues []LeagueEntryDTO
+	var leagues []riot.LeagueEntryDTO
 	if err := c.get(ctx, s.Platform, ep, &leagues); err != nil {
 		return nil, err
 	}
@@ -113,7 +94,7 @@ func (c *baseClient) League(ctx context.Context, s *Summoner) (*LeagueEntryDTO, 
 	return &leagues[0], nil
 }
 
-func (c *baseClient) Matches(ctx context.Context, s *Summoner, count int) ([]string, error) {
+func (c *baseClient) Matches(ctx context.Context, s *riot.Summoner, count int) ([]string, error) {
 	ep := path.Join(matchAPIPrefix, fmt.Sprintf("by-puuid/%s/ids?count=%d", s.PUUID, count))
 
 	var ids []string
@@ -124,9 +105,9 @@ func (c *baseClient) Matches(ctx context.Context, s *Summoner, count int) ([]str
 	return ids, nil
 }
 
-func (c *baseClient) Match(ctx context.Context, region string, matchID string) (*Match, error) {
+func (c *baseClient) Match(ctx context.Context, region string, matchID string) (*riot.Match, error) {
 	ep := path.Join(matchAPIPrefix, matchID)
-	m := &Match{}
+	m := &riot.Match{}
 	if err := c.get(ctx, region, ep, &m); err != nil {
 		return nil, err
 	}
