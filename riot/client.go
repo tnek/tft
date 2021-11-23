@@ -8,12 +8,21 @@ import (
 	"path"
 
 	"github.com/tnek/multilimiter"
+	"golang.org/x/time/rate"
 )
 
 const (
 	summonerAPIPrefix = "/tft/summoner/v1/summoners/"
 	matchAPIPrefix    = "/tft/match/v1/matches"
 	rankedAPIPrefix   = "/tft/league/v1/"
+)
+
+var (
+	// DevLimiter is a rate limiter that follows the rate limits imposed on RAPI dev Keys.
+	DevLimiter = multilimiter.New([]*rate.Limiter{
+		rate.NewLimiter(1, 20),
+		rate.NewLimiter(120, 100),
+	})
 )
 
 type Client interface {
