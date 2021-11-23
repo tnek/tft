@@ -7,7 +7,7 @@ import (
 	"net/http"
 	"path"
 
-	"golang.org/x/time/rate"
+	"github.com/tnek/multilimiter"
 )
 
 const (
@@ -37,10 +37,10 @@ type baseClient struct {
 	// Key is your RAPI key.
 	Key string
 
-	limiter *rate.Limiter
+	limiter *multilimiter.Limiter
 }
 
-func New(key string, limiter *rate.Limiter) *baseClient {
+func New(key string, limiter *multilimiter.Limiter) *baseClient {
 	c := &baseClient{Key: key}
 	c.limiter = limiter
 	return c
